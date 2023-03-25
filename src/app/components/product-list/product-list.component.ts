@@ -13,7 +13,13 @@ export class ProductListComponent implements OnInit {
 
   products: Product[] = []
   currentCategoryId: number = 1;
+  previousCategoryId: number = 1;
   searchMode: boolean = false;
+
+  pageNumber: number = 1;
+  pageSize: number = 5;
+  totalElements: number = 0;
+  previousKeyword: string = "";
 
   constructor(
     private productService: ProductService,
@@ -42,19 +48,48 @@ export class ProductListComponent implements OnInit {
     } else {
       this.currentCategoryId = 1;
     }
-    this.productService.getProductList(this.currentCategoryId).subscribe(
-      data => {
-        this.products = data;
-      }
-    )
+
+    // check if we have a different category
+    // if we have a different category id than previous
+    // then set pageNumber back to 1
+    if (this.previousCategoryId != this.currentCategoryId) {
+      this.pageNumber = 1;
+    } 
+
+    this.previousCategoryId = this.currentCategoryId;
+
+    this.productService.getProductListPaginate(
+      this.currentCategoryId,
+      this.pageNumber - 1,
+      this.pageSize
+      ).subscribe(
+      this.processResult()
+    );
   }
 
   handleSearchProduct() {
     const keyword: string = this.route.snapshot.paramMap.get('keyword')!;
-    this.productService.searchProducts(keyword).subscribe(
-      data => {
-        this.products = data;
-      }
-    )
+    // if we have differnet keyword reset pagenumber
+    if (this.previousKeyword != keyword) {
+      this.pageNumber = 1;
+    }
+    this.previousKeyword = keyword;
+    this.productService.searchProductsPaginate(keyword, this.pageNumber - 1, this.pageSize).subscribe(
+      this.processResult());
+  }
+
+  updatePageSize(pageSize: string) {
+    this.pageSize = +pageSize;
+    this.pageNumber = 1;
+    this.listProducts();
+  }
+
+  processResult() {
+    return (data: any) => {
+      this.products = data._embedded.products;
+      this.pageNumber = data.page.number + 1;
+      this.pageSize = data.page.size;
+      this.totalElements = data.page.totalElements;
+    }
   }
 }
